@@ -1,0 +1,15 @@
+language: python
+dist: xenial
+python:
+  - "3.7"
+before_install:
+    - sudo apt-get install librocksdb-dev libjemalloc-dev
+install:
+  - pip install .[test]
+before_script:
+  - mv aiorocksdb _aiorocksdb
+script:
+  - coverage run -m pytest
+after_success:
+  - codecov
+  - coveralls

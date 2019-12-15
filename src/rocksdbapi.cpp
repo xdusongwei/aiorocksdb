@@ -19,8 +19,6 @@ namespace py = pybind11;
 
 using namespace rocksdb;
 
-std::string kDBPath = "/tmp/rocksdb_simple_example";
-
 
 class RocksDbBatch{
      public:
@@ -50,50 +48,86 @@ class RocksDb {
             { this->path = path; this->create_if_missing = create_if_missing; }
 
         bool open(){
-            Options options;
-            // Optimize RocksDB. This is the easiest way to get RocksDB to perform well
-            options.IncreaseParallelism();
-            options.OptimizeLevelStyleCompaction();
-            // create the DB if it's not already present
-            options.create_if_missing = create_if_missing;
-
-            // open DB
-            Status s = DB::Open(options, path, &db);
-            return s.ok();
+            py::gil_scoped_release release;
+            bool is_ok = false;
+            try {
+                Options options;
+                options.IncreaseParallelism();
+                options.OptimizeLevelStyleCompaction();
+                options.create_if_missing = create_if_missing;
+                Status s = DB::Open(options, path, &db);
+                is_ok = s.ok();
+            }
+            catch (...) {  }
+            py::gil_scoped_acquire acquire;
+            return is_ok;
         }
 
         bool close(){
-            delete db;
+            py::gil_scoped_release release;
+            try {
+                delete db;
+            }
+            catch (...) {  }
+            py::gil_scoped_acquire acquire;
             return true;
         }
 
         py::object get(const std::string& key){
+            py::gil_scoped_release release;
             std::string value;
-            Status s = db->Get(ReadOptions(), key, &value);
-            if(s.IsNotFound()){
-                return py::cast<py::none>(Py_None);
+            py::object result = py::cast<py::none>(Py_None);
+            try {
+                Status s = db->Get(ReadOptions(), key, &value);
+                if(s.IsNotFound()){
+                    result = py::cast<py::none>(Py_None);
+                }
+                else if(!s.ok()){
+                    result = py::cast<py::none>(Py_None);
+                }
+                else{
+                    result = py::bytes(value);
+                }
             }
-            else if(!s.ok()){
-                return py::cast<py::none>(Py_None);
-            }
-            else{
-                return py::cast(value);
-            }
+            catch (...) {  }
+            py::gil_scoped_acquire acquire;
+            return result;
         }
 
         bool put(const std::string& key, const std::string& value){
-            Status s = db->Put(WriteOptions(), key, value);
-            return s.ok();
+            py::gil_scoped_release release;
+            bool is_ok = false;
+            try {
+                Status s = db->Put(WriteOptions(), key, value);
+                is_ok = s.ok();
+            }
+            catch (...) {  }
+            py::gil_scoped_acquire acquire;
+            return is_ok;
         }
 
         bool del(const std::string& key){
-            Status s = db->Delete(WriteOptions(), key);
-            return s.ok();
+            py::gil_scoped_release release;
+            bool is_ok = false;
+            try {
+                Status s = db->Delete(WriteOptions(), key);
+                is_ok = s.ok();
+            }
+            catch (...) {  }
+            py::gil_scoped_acquire acquire;
+            return is_ok;
         }
 
         bool execute(RocksDbBatch& batch){
-            Status s = db->Write(WriteOptions(), &batch.getBatch());
-            return s.ok();
+            py::gil_scoped_release release;
+            bool is_ok = false;
+            try {
+                Status s = db->Write(WriteOptions(), &batch.getBatch());
+                is_ok = s.ok();
+            }
+            catch (...) {  }
+            py::gil_scoped_acquire acquire;
+            return is_ok;
         }
 
     private:

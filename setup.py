@@ -2,8 +2,13 @@ from setuptools import setup, Extension, find_packages
 from setuptools.command.build_ext import build_ext
 import sys
 import setuptools
+import subprocess
+
 
 __version__ = '0.0.1'
+
+
+subprocess.call([sys.executable, '-m', 'pip', 'install', 'pybind11>=2.4'])
 
 
 class get_pybind_include(object):
@@ -66,6 +71,19 @@ def cpp_flag(compiler):
                        'is needed!')
 
 
+test_deps = [
+    'pytest',
+    'pytest-asyncio',
+    'python-coveralls',
+    'pytest-cov',
+    'codecov',
+]
+
+extras = {
+    'test': test_deps,
+}
+
+
 class BuildExt(build_ext):
     """A custom build extension for adding compiler-specific options."""
     c_opts = {
@@ -106,11 +124,13 @@ setup(
     url='https://github.com/xdusongwei/aiorocksdb',
     description='',
     long_description='',
-    ext_modules=ext_modules,
     install_requires=['pybind11>=2.4'],
     setup_requires=['pybind11>=2.4'],
+    ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     zip_safe=False,
     packages=find_packages(),
     python_requires='>=3.7.0',
+    tests_require=test_deps,
+    extras_require=extras,
 )
