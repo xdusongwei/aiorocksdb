@@ -1,0 +1,7 @@
+
+
+INTERNAL_PREFIX = '_aiorocksdb:'
+KEY_SET_PREFIX = '_aiorocksdb:set:'
+META_KEY_PREFIX = f'{INTERNAL_PREFIX}meta:'
+DATA_KEY_PREFIX = f'{INTERNAL_PREFIX}data:'
+ORDER_LIST_HEIGHT_MIN = 4
