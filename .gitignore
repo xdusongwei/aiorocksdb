@@ -106,5 +106,6 @@ venv.bak/
 *.db
 .idea/
 debug*.py
+debug*/
 .DS_Store
 tmp/

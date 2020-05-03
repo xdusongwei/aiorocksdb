@@ -27,8 +27,8 @@ class get_pybind_include(object):
 
 ext_modules = [
     Extension(
-        'aiorocksdb.rocksdbapi',
-        ['src/rocksdbapi.cpp'],
+        'aiorocksdb.wrap',
+        ['src/wrap.cpp', ],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),
