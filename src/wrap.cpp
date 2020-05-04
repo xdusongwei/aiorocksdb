@@ -17,6 +17,55 @@ namespace py = pybind11;
 using namespace rocksdb;
 
 
+class RocksStatus{
+    public:
+        RocksStatus(){
+            this->code = 0U;
+            this->subCode = 0U;
+            this->severity = 0U;
+        }
+
+        void fromStatus(Status& s){
+            this->code = s.code();
+            this->subCode = s.subcode();
+            this->severity = 0U;
+        }
+
+        bool isOk(){
+            return code == Status::Code::kOk;
+        }
+
+        void setCode(unsigned char code){
+            this->code = code;
+        }
+
+        void setSubCode(unsigned char subCode){
+            this->subCode = subCode;
+        }
+
+        void setSeverity(unsigned char severity){
+            this->severity = severity;
+        }
+
+        unsigned char getCode(){
+            return code;
+        }
+
+        unsigned char getSubCode(){
+            return subCode;
+        }
+
+        unsigned char getSeverity(){
+            return severity;
+        }
+
+    private:
+        unsigned char code;
+        unsigned char subCode;
+        unsigned char severity;
+};
+
+
 class RocksIterator{
     public:
         RocksIterator(){
@@ -28,7 +77,7 @@ class RocksIterator{
         }
 
         void close(DB* db){
-            if(iter){
+            if(iter != nullptr){
                 delete iter;
                 iter = nullptr;
             }
@@ -54,7 +103,7 @@ class RocksSnapshot{
         }
 
         void release(DB* db){
-            if(snapshot){
+            if(snapshot != nullptr){
                 db->ReleaseSnapshot(snapshot);
                 snapshot = nullptr;
             }
@@ -65,10 +114,11 @@ class RocksSnapshot{
 };
 
 
-class ColumnFamily{
+class RocksColumnFamily{
     public:
-        ColumnFamily(const std::string &name){
+        RocksColumnFamily(const std::string &name){
             this->name = name;
+            this->cf = nullptr;
         }
 
         void setHandle(ColumnFamilyHandle *cf){
@@ -84,14 +134,14 @@ class ColumnFamily{
         }
 
         void drop(DB* db){
-            if(cf){
+            if(cf != nullptr){
                 db->DropColumnFamily(cf);
                 cf = nullptr;
             }
         }
 
         void close(DB* db){
-            if(cf){
+            if(cf != nullptr){
                 db->DestroyColumnFamilyHandle(cf);
                 cf = nullptr;
             }
@@ -106,56 +156,57 @@ class ColumnFamily{
 class RocksDb {
     public:
         RocksDb(const std::string &path, const bool create_if_missing)
-            { this->path = path; this->create_if_missing = create_if_missing; }
+            { this->path = path; this->create_if_missing = create_if_missing; this->db = nullptr; }
 
-        bool open(std::vector<ColumnFamily>& column_family_list){
-            bool is_ok = false;
-            try {
-                std::vector<ColumnFamilyDescriptor> column_families;
-                std::vector<ColumnFamilyHandle*> handles;
-                for(ColumnFamily i : column_family_list) {
-                    column_families.push_back(ColumnFamilyDescriptor(i.getName(), ColumnFamilyOptions()));
-                }
-                Options options;
-                options.IncreaseParallelism();
-                options.OptimizeLevelStyleCompaction();
-                options.create_if_missing = create_if_missing;
-                Status s = DB::Open(options, path, column_families, &handles, &db);
-                for(auto i = 0u;i<column_family_list.size();i++) {
+        RocksStatus open(std::vector<RocksColumnFamily>& column_family_list){
+            std::vector<ColumnFamilyDescriptor> column_families;
+            std::vector<ColumnFamilyHandle*> handles;
+            for(RocksColumnFamily i : column_family_list) {
+                column_families.push_back(ColumnFamilyDescriptor(i.getName(), ColumnFamilyOptions()));
+            }
+            Options options;
+            options.IncreaseParallelism();
+            options.OptimizeLevelStyleCompaction();
+            options.create_if_missing = create_if_missing;
+            Status s = DB::Open(options, path, column_families, &handles, &db);
+            if(s.ok()){
+                for(auto i = 0U;i<column_family_list.size();i++) {
                     column_family_list[i].setHandle(handles[i]);
                 }
-                handles.clear();
-                is_ok = s.ok();
             }
-            catch (...) {  }
-            return is_ok;
+            handles.clear();
+            RocksStatus status;
+            status.fromStatus(s);
+            return status;
         }
 
-        void dropColumnFamily(ColumnFamily& cf){
-            if(db){
+        void dropColumnFamily(RocksColumnFamily& cf){
+            if(db != nullptr){
                 cf.drop(db);
             }
         }
 
-        void destroyColumnFamily(ColumnFamily& cf){
-            if(db){
+        void destroyColumnFamily(RocksColumnFamily& cf){
+            if(db != nullptr){
                 cf.close(db);
             }
         }
 
-        void createColumnFamily(ColumnFamily& cf){
+        void createColumnFamily(RocksColumnFamily& cf){
             std::vector<std::string> result;
             ColumnFamilyHandle* handle;
             db->CreateColumnFamily(ColumnFamilyOptions(), cf.getName(), &handle);
             cf.setHandle(handle);
         }
 
-        void createSnapshot(RocksSnapshot& ss){
-            ss.setSnapshot(db->GetSnapshot());
+        void createSnapshot(RocksSnapshot& snapshot){
+            if(db != nullptr){
+                snapshot.setSnapshot(db->GetSnapshot());
+            }
         }
 
         void releaseSnapshot(RocksSnapshot& snapshot){
-            if(db){
+            if(db != nullptr){
                 snapshot.release(db);
             }
         }
@@ -168,14 +219,14 @@ class RocksDb {
         }
 
         void destroyIterator(RocksIterator& iter){
-            if(db){
+            if(db != nullptr){
                 iter.close(db);
             }
         }
 
         void close(){
             try {
-                if(db){
+                if(db != nullptr){
                     delete db;
                     db = nullptr;
                 }
@@ -191,15 +242,28 @@ class RocksDb {
 
 
 PYBIND11_MODULE(wrap, m) {
+    py::class_<Status>(m, "Status", py::dynamic_attr())
+    .def("code", &Status::code)
+    .def("subCode", &Status::subcode);
+
+    py::class_<RocksStatus>(m, "RocksStatus", py::dynamic_attr())
+    .def(py::init())
+    .def("getCode", &RocksStatus::getCode)
+    .def("getSubCode", &RocksStatus::getSubCode)
+    .def("getSeverity", &RocksStatus::getSeverity)
+    .def("setCode", &RocksStatus::setCode)
+    .def("setSubCode", &RocksStatus::setSubCode)
+    .def("setSeverity", &RocksStatus::setSeverity);
+
     py::class_<RocksIterator>(m, "RocksIterator", py::dynamic_attr())
     .def(py::init());
 
     py::class_<RocksSnapshot>(m, "RocksSnapshot", py::dynamic_attr())
     .def(py::init());
 
-    py::class_<ColumnFamily>(m, "ColumnFamily", py::dynamic_attr())
+    py::class_<RocksColumnFamily>(m, "RocksColumnFamily", py::dynamic_attr())
     .def(py::init<const std::string &>())
-    .def("getName", &ColumnFamily::getName);
+    .def("getName", &RocksColumnFamily::getName);
 
     py::class_<RocksDb>(m, "RocksDb", py::dynamic_attr())
     .def(py::init<const std::string &, const bool>())
