@@ -27,17 +27,17 @@ class get_pybind_include(object):
 
 ext_modules = [
     Extension(
-        'aiorocksdb.wrap',
-        ['src/wrap.cpp', ],
+        'aiorocksdb.rocks_wrap',
+        ['src/rocks_wrap.cpp', ],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),
-            get_pybind_include(user=True)
+            get_pybind_include(user=True),
         ],
         language='c++',
-        libraries=['jemalloc', 'rocksdb', ],
-        extra_compile_args=['-shared', ],
-        extra_link_args=['-shared', ],
+        libraries=['jemalloc', 'rocksdb', 'snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', ],
+        extra_compile_args=[],
+        extra_link_args=[],
     ),
 ]
 
