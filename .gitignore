@@ -109,3 +109,4 @@ debug*.py
 debug*/
 .DS_Store
 tmp/
+.vs/
