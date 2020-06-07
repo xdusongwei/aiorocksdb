@@ -1,27 +1,4 @@
-#include <rocksdb/options.h>
-#include <rocksdb/slice.h>
-#include <rocksdb/db.h>
-#include <rocksdb/comparator.h>
-#include <rocksdb/utilities/stackable_db.h>
-#include <rocksdb/utilities/transaction.h>
-#include <rocksdb/utilities/optimistic_transaction_db.h>
-#include <rocksdb/utilities/transaction_db.h>
 
-#define PY_SSIZE_T_CLEAN
-#include <Python.h>
-
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/complex.h>
-
-namespace py = pybind11;
-using namespace ROCKSDB_NAMESPACE;
-
-#define RDB DB
-#include "rocks_status.h"
-#include "rocks_iterator.h"
-#include "rocks_snapshot.h"
-#include "rocks_column_family.h"
 
 class Rocks {
     public:
