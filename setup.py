@@ -6,6 +6,7 @@ import subprocess
 
 
 __version__ = '0.0.1'
+name = 'aiorocksdb'
 
 
 subprocess.call([sys.executable, '-m', 'pip', 'install', 'pybind11>=2.4'])
@@ -27,15 +28,28 @@ class get_pybind_include(object):
 
 ext_modules = [
     Extension(
-        'aiorocksdb.rocks_wrap',
-        ['src/rocks_wrap.cpp', ],
+        f'{name}.db_native',
+        ['src/db_native.cc', ],
         include_dirs=[
             # Path to pybind11 headers
             get_pybind_include(),
             get_pybind_include(user=True),
         ],
         language='c++',
-        libraries=['jemalloc', 'rocksdb', 'snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', ],
+        libraries=['jemalloc', 'snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', 'rocksdb', ],
+        extra_compile_args=[],
+        extra_link_args=[],
+    ),
+    Extension(
+        f'{name}.db_api',
+        ['src/db_api.cc', ],
+        include_dirs=[
+            # Path to pybind11 headers
+            get_pybind_include(),
+            get_pybind_include(user=True),
+        ],
+        language='c++',
+        libraries=['jemalloc', 'snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', 'rocksdb', ],
         extra_compile_args=[],
         extra_link_args=[],
     ),
@@ -72,7 +86,8 @@ def cpp_flag(compiler):
 
 
 test_deps = [
-    'pytest',
+    'py>=1.9.0',
+    'pytest>=5.4.0',
     'pytest-asyncio',
     'python-coveralls',
     'pytest-cov',
@@ -107,8 +122,8 @@ class BuildExt(build_ext):
         if ct == 'unix':
             opts.append('-DVERSION_INFO="%s"' % self.distribution.get_version())
             opts.append(cpp_flag(self.compiler))
-            '''if has_flag(self.compiler, '-fvisibility=hidden'):
-                opts.append('-fvisibility=hidden')'''
+            if has_flag(self.compiler, '-fvisibility=hidden'):
+                opts.append('-fvisibility=hidden')
         elif ct == 'msvc':
             opts.append('/DVERSION_INFO=\\"%s\\"' % self.distribution.get_version())
         for ext in self.extensions:
@@ -117,14 +132,14 @@ class BuildExt(build_ext):
         build_ext.build_extensions(self)
 
 setup(
-    name='aiorocksdb',
+    name=name,
     version=__version__,
     author='songwei',
     author_email='songwei@songwei.io',
     url='https://github.com/xdusongwei/aiorocksdb',
     description='',
     long_description='',
-    install_requires=['pybind11>=2.4'],
+    install_requires=['pybind11>=2.4', 'typing', ],
     setup_requires=['pybind11>=2.4'],
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},

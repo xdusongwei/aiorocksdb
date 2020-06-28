@@ -3,9 +3,9 @@
 using namespace ROCKSDB_NAMESPACE;
 
 #ifdef RDB
-class RocksSnapshot{
+class RSnapshot{
     public:
-        RocksSnapshot(){
+        RSnapshot(){
             snapshot = nullptr;
         }
 
@@ -15,6 +15,14 @@ class RocksSnapshot{
 
         const Snapshot* getSnapshot(){
             return snapshot;
+        }
+
+        void setReadOptions(ReadOptions& options){
+            options.snapshot = snapshot;
+        }
+
+        void clearReadOptions(ReadOptions& options){
+            options.snapshot = nullptr;
         }
 
         void release(RDB* db){

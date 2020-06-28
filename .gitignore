@@ -110,3 +110,5 @@ debug*/
 .DS_Store
 tmp/
 .vs/
+db_*/
+*.sst

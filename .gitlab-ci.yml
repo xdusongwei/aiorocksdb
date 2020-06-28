@@ -1,0 +1,26 @@
+image: xdusongwei/python-rocksdb:3.8.3.6.10.1
+
+stages:
+    - test
+
+variables:
+    PROJECT: 'message'
+    PIP_CACHE_DIR: "$CI_PROJECT_DIR/.cache/pip"
+
+cache:
+  paths:
+    - .cache/pip
+    - .venv3
+
+before_script:
+  - pip install virtualenv
+  - virtualenv .venv3
+  - source .venv3/bin/activate
+  - python -V
+  - pip install -e .[test]
+
+test:
+  script:
+  - coverage run -m pytest
+  - codecov
+  - coveralls
