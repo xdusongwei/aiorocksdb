@@ -3,11 +3,21 @@
 using namespace ROCKSDB_NAMESPACE;
 
 #ifdef RDB
-class RocksColumnFamily{
+class RColumnFamily{
     public:
-        RocksColumnFamily(const std::string &name){
-            this->name = name;
-            this->cf = nullptr;
+        RColumnFamily(const std::string &name){
+            cd = ColumnFamilyDescriptor(name, ColumnFamilyOptions());
+            cf = nullptr;
+        }
+
+        RColumnFamily(const std::string &name, const ColumnFamilyOptions& cf_options){
+            cd = ColumnFamilyDescriptor(name, cf_options);
+            cf = nullptr;
+        }
+
+        RColumnFamily(const ColumnFamilyDescriptor &cfd){
+            cd = cfd;
+            cf = nullptr;
         }
 
         void setHandle(ColumnFamilyHandle *cf){
@@ -19,25 +29,43 @@ class RocksColumnFamily{
         }
 
         std::string& getName(){
-            return name;
+            return cd.name;
         }
 
-        void drop(RDB* db){
-            if(cf != nullptr){
-                db->DropColumnFamily(cf);
-                cf = nullptr;
-            }
+        bool isLoaded(){
+            return cf != nullptr;
         }
 
-        void close(RDB* db){
-            if(cf != nullptr){
-                db->DestroyColumnFamilyHandle(cf);
-                cf = nullptr;
-            }
+        Status drop(RDB* db){
+            #ifndef USE_GIL
+            py::gil_scoped_release release;
+            #endif
+            Status s = db->DropColumnFamily(cf);
+            cf = nullptr;
+            #ifndef USE_GIL
+            py::gil_scoped_acquire acquire;
+            #endif
+            return s;
+        }
+
+        Status close(RDB* db){
+            #ifndef USE_GIL
+            py::gil_scoped_release release;
+            #endif
+            Status s = db->DestroyColumnFamilyHandle(cf);
+            cf = nullptr;
+            #ifndef USE_GIL
+            py::gil_scoped_acquire acquire;
+            #endif
+            return s;
+        }
+
+        ColumnFamilyDescriptor getColumnFamilyDescriptor(){
+            return cd;
         }
 
     private:
-        std::string name;
         ColumnFamilyHandle* cf;
+        ColumnFamilyDescriptor cd;
 };
 #endif

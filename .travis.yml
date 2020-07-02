@@ -1,15 +1,15 @@
 language: python
-dist: xenial
+dist: bionic
 python:
-  - "3.7"
-before_install:
-    - sudo apt-get install librocksdb-dev libjemalloc-dev
+- 3.8.3
+services:
+- docker
 install:
-  - pip install .[test]
-before_script:
-  - mv aiorocksdb _aiorocksdb
+- docker build -t xdusongwei/aiorocksdb .
 script:
-  - coverage run -m pytest
-after_success:
-  - codecov
-  - coveralls
+- docker run --name test xdusongwei/aiorocksdb /bin/bash -c "coverage run -m pytest"
+- docker cp test:/app .
+- cd app
+- pip install codecov coveralls
+- codecov
+- coveralls
