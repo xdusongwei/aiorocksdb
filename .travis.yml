@@ -2,15 +2,9 @@ language: python
 dist: bionic
 python:
   - "3.8.3"
-before_install:
-    - sudo apt-get install -y libgflags-dev libsnappy-dev zlib1g-dev libbz2-dev liblz4-dev libzstd-dev unzip cmake gcc g++
-    - test -f /usr/local/lib/libjemalloc.so || (wget -O jemalloc.tar.bz2 https://github.com/jemalloc/jemalloc/releases/download/5.2.1/jemalloc-5.2.1.tar.bz2 && tar -xf jemalloc.tar.bz2 && cd jemalloc-5.2.1 && ./configure --disable-initial-exec-tls && make -j "$(nproc || echo 2)" && sudo make install && make clean && sudo ldconfig && cd .. && rm -rf jemalloc.tar.bz2 jemalloc-5.2.1)
-    - test -f /usr/local/lib/librocksdb.so.6.10.1 || (wget -O rocksdb.tar.gz https://github.com/facebook/rocksdb/archive/v6.10.1.tar.gz && tar -xf rocksdb.tar.gz && cd rocksdb-6.10.1 && USE_RTTI=1 make -j "$(nproc || echo 2)" shared_lib && sudo make install-shared && make clean && sudo ldconfig && cd .. && rm -rf rocksdb.tar.gz rocksdb-6.10.1)
+services:
+  - docker
 install:
-  - pip install -e .[test]
+    - docker build -t xdusongwei/aiorocksdb .
 script:
-  - pytest tests
-#  - coverage run -m pytest
-#after_success:
-#  - codecov
-#  - coveralls
+  - docker run xdusongwei/aiorocksdb /bin/sh -c "cd /app && coverage run -m pytest && codecov"

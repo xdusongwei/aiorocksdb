@@ -7,11 +7,18 @@ from aiorocksdb.db_native import *
 from aiorocksdb.db_api import *
 
 
+import faulthandler
+faulthandler.enable()
+
+
 class AsyncCallMixin:
     def _aio_call(self, fn: Callable, *args, **kwargs):
         return self.loop.run_in_executor(
             self.thread, partial(fn, *args, **kwargs)
         )
+
+    async def _sio_call(self, fn: Callable, *args, **kwargs):
+        return fn(*args, **kwargs)
 
     def __init__(self):
         self.thread = ThreadPoolExecutor()
@@ -22,8 +29,8 @@ class AsyncCallMixin:
         if not self.thread:
             return
         self.thread.shutdown(wait=False)
-        self.thread = None
         self.aio_call = None
+        self.thread = None
 
 
 class RocksDbTransaction:

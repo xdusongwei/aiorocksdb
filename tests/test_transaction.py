@@ -66,6 +66,7 @@ async def test_optimistic_transaction():
     assert s.ok()
     s = await transaction_last.commit()
     assert not s.ok()
+    await transaction_last.rollback()
     await r.release_transaction(transaction_first)
     await r.release_transaction(transaction_last)
 

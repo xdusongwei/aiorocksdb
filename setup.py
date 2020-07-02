@@ -36,7 +36,7 @@ ext_modules = [
             get_pybind_include(user=True),
         ],
         language='c++',
-        libraries=['jemalloc', 'snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', 'rocksdb', ],
+        libraries=['snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', 'rocksdb', ],
         extra_compile_args=[],
         extra_link_args=[],
     ),
@@ -49,7 +49,7 @@ ext_modules = [
             get_pybind_include(user=True),
         ],
         language='c++',
-        libraries=['jemalloc', 'snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', 'rocksdb', ],
+        libraries=['snappy', 'z', 'bz2', 'gflags', 'pthread', 'lz4', 'zstd', 'rocksdb', ],
         extra_compile_args=[],
         extra_link_args=[],
     ),
@@ -86,10 +86,8 @@ def cpp_flag(compiler):
 
 
 test_deps = [
-    'py>=1.9.0',
-    'pytest>=5.4.0',
+    'pytest',
     'pytest-asyncio',
-    'python-coveralls',
     'pytest-cov',
     'codecov',
 ]

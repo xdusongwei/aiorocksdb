@@ -103,9 +103,13 @@ Status RDb::openDb(std::vector<RColumnFamily*>& column_family_list){
     for(RColumnFamily* i : column_family_list) {
         column_families.push_back(ColumnFamilyDescriptor(i->getName(), ColumnFamilyOptions()));
     }
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = RDB::Open(options, path, column_families, &handles, &db);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     if(s.ok()){
         for(auto i = 0U;i<column_family_list.size();i++) {
             column_family_list[i]->setHandle(handles[i]);
@@ -121,9 +125,13 @@ Status RDb::openDbForReadonly(std::vector<RColumnFamily*>& column_family_list, b
     for(RColumnFamily* i : column_family_list) {
         column_families.push_back(ColumnFamilyDescriptor(i->getName(), ColumnFamilyOptions()));
     }
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = RDB::OpenForReadOnly(options, path, column_families, &handles, &db, error_if_log_file_exist);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     if(s.ok()){
         for(auto i = 0U;i<column_family_list.size();i++) {
             column_family_list[i]->setHandle(handles[i]);
@@ -141,9 +149,13 @@ Status RDb::openTransactionDb(std::vector<RColumnFamily*>& column_family_list){
     }
     TransactionDBOptions txn_db_options;
     TransactionDB* txn_db;
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = TransactionDB::Open(options, txn_db_options, path, column_families, &handles, &txn_db);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     if(s.ok()){
         for(auto i = 0U;i<column_family_list.size();i++) {
             column_family_list[i]->setHandle(handles[i]);
@@ -162,9 +174,13 @@ Status RDb::openOptimisticTransactionDb(std::vector<RColumnFamily*>& column_fami
         column_families.push_back(ColumnFamilyDescriptor(i->getName(), ColumnFamilyOptions()));
     }
     OptimisticTransactionDB* txn_db;
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = OptimisticTransactionDB::Open(options, path, column_families, &handles, &txn_db);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     if(s.ok()){
         for(auto i = 0U;i<column_family_list.size();i++) {
             column_family_list[i]->setHandle(handles[i]);
@@ -182,10 +198,14 @@ Status RDb::openDbWithTTL(std::vector<RColumnFamily*>& column_family_list, std::
     for(RColumnFamily* i : column_family_list) {
         column_families.push_back(ColumnFamilyDescriptor(i->getName(), ColumnFamilyOptions()));
     }
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     DBWithTTL* ttl_db;
     Status s = DBWithTTL::Open(options, path, column_families, &handles, &ttl_db, ttls, read_only);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     if(s.ok()){
         for(auto i = 0U;i<column_family_list.size();i++) {
             column_family_list[i]->setHandle(handles[i]);
@@ -208,7 +228,9 @@ Status RDb::destroyColumnFamily(RColumnFamily& cf){
 Status RDb::createColumnFamily(const ColumnFamilyOptions& cf_options, RColumnFamily& cf, int32_t ttl = 0){
     std::vector<std::string> result;
     ColumnFamilyHandle* handle;
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s;
     if(is_ttl_db){
         DBWithTTL* ttl_db = (DBWithTTL*)db;
@@ -217,31 +239,45 @@ Status RDb::createColumnFamily(const ColumnFamilyOptions& cf_options, RColumnFam
     else{
         s = db->CreateColumnFamily(cf_options, cf.getName(), &handle);
     }
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     cf.setHandle(handle);
     return s;
 }
 
 void RDb::createSnapshot(RSnapshot& snapshot){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     if(db != nullptr){
         snapshot.setSnapshot(db->GetSnapshot());
     }
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
 }
 
 void RDb::releaseSnapshot(RSnapshot& snapshot){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     if(db != nullptr){
         snapshot.release(db);
     }
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
 }
 
 void RDb::createIterator(RIterator& iter, ReadOptions &options, RColumnFamily &columnFamily){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Iterator* newIter = db->NewIterator(options, columnFamily.getHandle());
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     iter.setIterator(newIter);
 }
 
@@ -258,9 +294,13 @@ ComplexStatus RDb::get(const ReadOptions &options, RColumnFamily &columnFamily, 
     ComplexStatus result;
     {
         std::string str;
+        #ifndef USE_GIL
         py::gil_scoped_release release;
+        #endif
         Status s = db->Get(options, columnFamily.getHandle(), key, &str);
+        #ifndef USE_GIL
         py::gil_scoped_acquire acquire;
+        #endif
         result.status = s;
         if(s.ok()){
             result.value = py::bytes(str);
@@ -271,25 +311,37 @@ ComplexStatus RDb::get(const ReadOptions &options, RColumnFamily &columnFamily, 
 
 
 Status RDb::put(const WriteOptions &options, RColumnFamily &columnFamily, const std::string &key, const std::string &value){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = db->Put(options, columnFamily.getHandle(), key, value);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return s;
 }
 
 
 Status RDb::deleteKey(const WriteOptions &options, RColumnFamily &columnFamily, const std::string &key){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = db->Delete(options, columnFamily.getHandle(), key);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return s;
 }
 
 
 Status RDb::deleteRange(const WriteOptions &options, RColumnFamily &columnFamily, const std::string &from, const std::string &to){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = db->DeleteRange(options, columnFamily.getHandle(), from, to);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return s;
 }
 
@@ -305,18 +357,26 @@ ComplexStatus RDb::multiGet(const ReadOptions &options, const std::vector<RColum
         slice_keys.push_back(Slice(i));
     }
     ComplexStatus result;
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     result.statusList = db->MultiGet(options, handles, slice_keys, &values);
     result.valueList = values;
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return result;
 }
 
 
 Status RDb::ingestExternalFile(const std::vector<std::string> &files, RColumnFamily &columnFamily, IngestExternalFileOptions &ifo){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = db->IngestExternalFile(files, ifo);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return s;
 }
 
@@ -326,38 +386,54 @@ Status RDb::flush(const FlushOptions &options, std::vector<RColumnFamily*>& colu
     for(RColumnFamily* i : column_family_list) {
         handles.push_back(i->getHandle());
     }
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = db->Flush(options, handles);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return s;
 }
 
 
 Status RDb::write(const WriteOptions &options, RBatch& batch){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     Status s = db->Write(options, &batch);
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
     return s;
 }
 
 
 void RDb::beginTransaction(const WriteOptions &options, TransactionOptions& txn_options, RTransaction &txn){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     if((TransactionDB*)db){
         Transaction* t = ((TransactionDB*)db)->BeginTransaction(options, txn_options);
         txn.setTransaction(t);
     }
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
 }
 
 
 void RDb::beginOptimisticTransaction(const WriteOptions &options, OptimisticTransactionOptions& txn_options, RTransaction &txn){
+    #ifndef USE_GIL
     py::gil_scoped_release release;
+    #endif
     if((OptimisticTransactionDB*)db){
         Transaction* t = ((OptimisticTransactionDB*)db)->BeginTransaction(options, txn_options);
         txn.setTransaction(t);
     }
+    #ifndef USE_GIL
     py::gil_scoped_acquire acquire;
+    #endif
 }
 
 

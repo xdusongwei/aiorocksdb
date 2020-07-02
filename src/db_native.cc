@@ -150,9 +150,13 @@ PYBIND11_MODULE(db_native, m) {
     m
     .def("destroy_db",
         [](const std::string& dbname, const Options& options) {
+            #ifndef USE_GIL
             py::gil_scoped_release release;
+            #endif
             Status status = DestroyDB(dbname, options);
+            #ifndef USE_GIL
             py::gil_scoped_acquire acquire;
+            #endif
             return status;
         },
         "Destroy the contents of the specified database."
@@ -160,9 +164,13 @@ PYBIND11_MODULE(db_native, m) {
 
     m.def("repair_db",
         [](const std::string& dbname, const Options& options) {
+            #ifndef USE_GIL
             py::gil_scoped_release release;
+            #endif
             Status status = RepairDB(dbname, options);
+            #ifndef USE_GIL
             py::gil_scoped_acquire acquire;
+            #endif
             return status;
         },
         "repair database"

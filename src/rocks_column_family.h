@@ -37,18 +37,26 @@ class RColumnFamily{
         }
 
         Status drop(RDB* db){
+            #ifndef USE_GIL
             py::gil_scoped_release release;
+            #endif
             Status s = db->DropColumnFamily(cf);
             cf = nullptr;
+            #ifndef USE_GIL
             py::gil_scoped_acquire acquire;
+            #endif
             return s;
         }
 
         Status close(RDB* db){
+            #ifndef USE_GIL
             py::gil_scoped_release release;
+            #endif
             Status s = db->DestroyColumnFamilyHandle(cf);
             cf = nullptr;
+            #ifndef USE_GIL
             py::gil_scoped_acquire acquire;
+            #endif
             return s;
         }
 
