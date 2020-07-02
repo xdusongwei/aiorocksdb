@@ -8,8 +8,7 @@ install:
 - docker build -t xdusongwei/aiorocksdb .
 script:
 - docker run --name test xdusongwei/aiorocksdb /bin/bash -c "coverage run -m pytest"
-- docker cp test:/app .
-- cd app
+- docker cp test:/home/travis/build/xdusongwei/aiorocksdb/.coverage .
 - pip install codecov coveralls
 - codecov
 - coveralls
