@@ -23,6 +23,8 @@ async def test_sst_writer():
 
 @pytest.mark.asyncio
 async def test_sst_import():
+    await RocksDb.destroy_db('db_test_native')
+
     sst_writer = SstFileWriter()
     s = await sst_writer.open('sst_import.sst')
     assert s.ok()
@@ -40,6 +42,8 @@ async def test_sst_import():
     sst_reader = SstFileReader()
     s = await sst_reader.open('sst_import.sst')
     assert s.ok()
+    s = await sst_reader.verify_checksum()
+    assert s.ok()
     it = await sst_reader.create_iterator()
     await it.seek(b'a')
     valid = await it.valid()
@@ -52,7 +56,7 @@ async def test_sst_import():
 
     option = Options()
     option.create_if_missing = True
-    s = await RocksDb.open_db('db_test_sst', option)
+    s = await RocksDb.open_db('db_test_native', option)
     assert s.ok()
     r = s.result
 

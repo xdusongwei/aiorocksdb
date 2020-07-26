@@ -185,4 +185,5 @@ PYBIND11_MODULE(db_api, m) {
     ;
 
     m.def("load_latest_options", py::overload_cast<const ConfigOptions&, const std::string&>(&LoadLatestOptions));
+    m.def("list_column_families", py::overload_cast<const std::string&, const Options&>(&ListColumnFamilies));
 }

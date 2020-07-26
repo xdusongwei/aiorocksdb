@@ -1,13 +1,14 @@
-import asyncio
 import pytest
 from aiorocksdb.rocks_db import *
 
 
 @pytest.mark.asyncio
 async def test_read_write():
+    await RocksDb.destroy_db('db_test_native')
+
     option = Options()
     option.create_if_missing = True
-    s = await RocksDb.open_db('db_test_read_write', option)
+    s = await RocksDb.open_db('db_test_native', option)
     assert s.ok()
     r = s.result
 
@@ -43,11 +44,11 @@ async def test_read_write():
 
     option = Options()
     option.create_if_missing = True
-    s = await RocksDb.open_db('db_test_read_write', option)
+    s = await RocksDb.open_db('db_test_native', option)
     assert s.ok()
     r = s.result
 
-    s = await RocksDb.open_db_for_readonly('db_test_read_write', option)
+    s = await RocksDb.open_db_for_readonly('db_test_native', option)
     assert s.ok()
     r_readonly = s.result
 
@@ -60,10 +61,12 @@ async def test_read_write():
 
 @pytest.mark.asyncio
 async def test_read_write_ttl():
+    await RocksDb.destroy_db('db_test_native')
+
     option = Options()
     option.create_if_missing = True
     column_family_list = [RColumnFamily(RocksDb.DEFAULT_COLUMN_FAMILY)]
-    s = await RocksDb.open_ttl_db('db_test_read_write_ttl', ttls=[1], column_family_list=column_family_list, options=option)
+    s = await RocksDb.open_ttl_db('db_test_native', ttls=[1], column_family_list=column_family_list, options=option)
     assert s.ok()
     r = s.result
     await r.set_ttl(1)

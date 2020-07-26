@@ -40,8 +40,11 @@ class RColumnFamily{
             #ifndef USE_GIL
             py::gil_scoped_release release;
             #endif
-            Status s = db->DropColumnFamily(cf);
-            cf = nullptr;
+            Status s;
+            if(cf != nullptr){
+                Status s = db->DropColumnFamily(cf);
+                cf = nullptr;
+            }
             #ifndef USE_GIL
             py::gil_scoped_acquire acquire;
             #endif
@@ -52,8 +55,11 @@ class RColumnFamily{
             #ifndef USE_GIL
             py::gil_scoped_release release;
             #endif
-            Status s = db->DestroyColumnFamilyHandle(cf);
-            cf = nullptr;
+            Status s;
+            if(cf != nullptr){
+                s = db->DestroyColumnFamilyHandle(cf);
+                cf = nullptr;
+            }
             #ifndef USE_GIL
             py::gil_scoped_acquire acquire;
             #endif

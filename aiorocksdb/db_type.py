@@ -86,5 +86,9 @@ class SnapshotT:
         ...
 
 
+class LatestOptionsStatusT(StatusT[List[RColumnFamilyT]]):
+    options: Optional[OptionsT] = None
+
+
 __all__ = ['StatusT', 'ComplexStatusT', 'DbPathT', 'OptionsT', 'ReadOptionsT', 'RColumnFamilyT',
-           'SnapshotT', ]
+           'SnapshotT', 'LatestOptionsStatusT', ]

@@ -30,6 +30,11 @@ using namespace ROCKSDB_NAMESPACE;
 #include "rocks_sst_reader.h"
 #include "rocks_options.h"
 
+ComplexStatus ListColumnFamilies(const std::string& name, const Options& db_options){
+    ComplexStatus result;
+    result.status = RDB::ListColumnFamilies(db_options, name, &(result.valueList));
+    return result;
+}
 
 class RDb {
     public:
@@ -227,7 +232,7 @@ Status RDb::destroyColumnFamily(RColumnFamily& cf){
 
 Status RDb::createColumnFamily(const ColumnFamilyOptions& cf_options, RColumnFamily& cf, int32_t ttl = 0){
     std::vector<std::string> result;
-    ColumnFamilyHandle* handle;
+    ColumnFamilyHandle* handle = nullptr;
     #ifndef USE_GIL
     py::gil_scoped_release release;
     #endif

@@ -114,7 +114,7 @@ class RocksDbIterator:
         self.aio_call = aio_call
         self.iterator = iterator
 
-    def reset(self):
+    def clean(self):
         self.aio_call = None
         self.iterator = None
 
@@ -156,6 +156,7 @@ class RocksDbIterator:
 
     async def close(self):
         await self.aio_call(self.iterator.close)
+        self.clean()
 
 
 class SstFileReader(AsyncCallMixin):
@@ -247,7 +248,7 @@ class RocksDbBackupReadonly(AsyncCallMixin):
         result = await self.aio_call(self.backup.get_backup_info)
         return result
 
-    async def verify_backup(self, backup_id: int) -> bool:
+    async def verify_backup(self, backup_id: int) -> StatusT:
         assert isinstance(backup_id, int) and 0 < backup_id < 2**32
         result = await self.aio_call(self.backup.verify_backup, backup_id)
         return result
@@ -283,6 +284,8 @@ class RocksDb(AsyncCallMixin):
         self._column_family_list = None
         self.enable_transaction = False
         self.enable_optimistic_transaction = False
+        self.is_readonly = False
+        self.codec_list = None
 
     @property
     def column_family_list(self) -> List[RColumnFamily]:
@@ -297,7 +300,7 @@ class RocksDb(AsyncCallMixin):
         return self.column_family_dict[self.DEFAULT_COLUMN_FAMILY]
 
     @classmethod
-    async def load_latest_options(cls, db_path: str, options: ConfigOptions = None) -> StatusT[List[RColumnFamily]]:
+    async def load_latest_options(cls, db_path: str, options: ConfigOptions = None) -> LatestOptionsStatusT:
         options = options or ConfigOptions()
         assert isinstance(options, ConfigOptions)
         complex_status = await asyncio.get_event_loop().run_in_executor(None, load_latest_options, options, db_path)
@@ -326,6 +329,17 @@ class RocksDb(AsyncCallMixin):
         options = options or Options()
         assert isinstance(options, Options)
         status = await asyncio.get_event_loop().run_in_executor(None, repair_db, db_path, options)
+        return status
+
+    @classmethod
+    async def list_column_families(cls, db_path: str, options: OptionsT = None) \
+            -> StatusT[List[str]]:
+        assert isinstance(db_path, str)
+        options = options or Options()
+        assert isinstance(options, Options)
+        complex_status: ComplexStatusT = await asyncio.get_event_loop().run_in_executor(None, list_column_families, db_path, options)
+        status = complex_status.status
+        status.result = complex_status.value_list
         return status
 
     @classmethod
@@ -365,6 +379,7 @@ class RocksDb(AsyncCallMixin):
         rocks = RocksDb()
         rocks.enable_transaction = False
         rocks.enable_optimistic_transaction = False
+        rocks.is_readonly = True
         cls._build(rocks, path, options, column_family_list)
         column_family_list = rocks._column_family_list
         status = await rocks.aio_call(rocks._db.open_db_for_readonly, column_family_list, error_if_log_file_exist)
@@ -400,6 +415,8 @@ class RocksDb(AsyncCallMixin):
     async def close(self):
         if self._column_family_list:
             for cf in self._column_family_list:
+                if not cf.is_loaded():
+                    continue
                 await self.aio_call(self._db.destroy_column_family, cf)
             self._column_family_list = None
         await self.aio_call(self._db.close)
@@ -408,17 +425,19 @@ class RocksDb(AsyncCallMixin):
 
     async def create_column_family(self, column_family: RColumnFamilyT, options: ColumnFamilyOptions = None, ttl: int = 0) -> StatusT:
         if column_family.is_loaded():
-            raise ValueError('column_family loaded column family handle')
+            raise ValueError('column_family has handle')
         options = options or ColumnFamilyOptions()
         assert isinstance(options, ColumnFamilyOptions)
         status = await self.aio_call(self._db.create_column_family, options, column_family, ttl)
         if status.ok():
             self._column_family_list.append(column_family)
+        if not column_family.is_loaded():
+            raise ValueError('column_family without handle')
         return status
 
     async def drop_column_family(self, column_family: RColumnFamilyT) -> StatusT:
         if not column_family.is_loaded():
-            raise ValueError('column_family without column family handle')
+            raise ValueError('column_family without handle')
         status = await self.aio_call(self._db.drop_column_family, column_family)
         if status.ok():
             self._column_family_list = [cf for cf in self._column_family_list if cf != column_family]

@@ -6,7 +6,7 @@ class KeyLock:
         self.d = dict()
 
     def acquire(self, key):
-        return KeyContext(self.d, hash(key) % 64)
+        return KeyContext(self.d, hash(key) % 4096)
 
 
 class KeyContext:
