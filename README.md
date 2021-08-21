@@ -2,67 +2,139 @@ aiorocksdb
 ==========
 
 
+操作 rocksdb 的 python 层，需要在环境中事先编译安装数据库
+
+## 基本功能
+
+基本功能大多是按照 rocksdb api 接口的设计参照出来的接口函数 
+
+### 打开/关闭/删除数据库
+
+普通方式的打开数据库
 ```python
-import asyncio
-import aiorocksdb
+from aiorocksdb.rocks_db import *
 
 
 async def main():
-    async with aiorocksdb.RocksDb('test.db') as rocksdb:
-        assert not (await rocksdb.get('new_key'))
-        await rocksdb.put('new_key', b'new_value')
-        assert (await rocksdb.get('new_key')) == b'new_value'
-        await rocksdb.delete('new_key')
-
-
-if __name__ == '__main__':
-    asyncio.get_event_loop().run_until_complete(main())
-
+    option = Options()
+    option.create_if_missing = True
+    s = await RocksDb.open_db('dbPathName', option)
+    assert s.ok()
+    db = s.result
 ```
 
-List commands:
+只读打开数据库
+```python
+s = await RocksDb.open_db_for_readonly('dbPathName', option)
+```
+
+事物模式打开数据库
+```python
+s = await RocksDb.open_transaction_db('dbPathName', option)
+```
+
+乐观事物模式打开数据库
+```python
+s = await RocksDb.open_optimistic_transaction_db('dbPathName', option)
+```
+
+关闭数据库
+```python
+await db.close()
+```
+
+删除数据库
+```python
+from aiorocksdb.rocks_db import *
+
+async def main():
+    await RocksDb.destroy_db('dbPathName')
+```
+
+
+### 列族/读写键
+
+打开数据库时设置列族范围
+```python
+from aiorocksdb.rocks_db import *
+
+
+async def main():
+    user_cf = RColumnFamily('user')
+    order_cf = RColumnFamily('order', ColumnFamilyOptions())
+    option = Options()
+    option.create_if_missing = True
+    option.create_missing_column_families = True
+    s = await RocksDb.open_db('dbPathName', option, [user_cf, order_cf, ])
+    assert s.ok()
+    db = s.result
+```
+
+创建列族
+
+
+删除列族
+
+
+读指定的键
 
 ```python
-import aiorocksdb
-
-
-async def list_commands():
-    async with aiorocksdb.RocksDb('test.db') as rocksdb:
-        await rocksdb.lpush('list', b'hello')
-        await rocksdb.lpush('list', b'world')
-        value = await rocksdb.rpop('list')
-        await rocksdb.delete_key('list')
-
+user_cf = RColumnFamily('user')
+s = await db.get(b'userA', column_family=user_cf)
 ```
 
-Set commands:
+写入指定的键数据
 
 ```python
-import aiorocksdb
-
-
-async def set_commands():
-    async with aiorocksdb.RocksDb('test.db') as rocksdb:
-        await rocksdb.sadd('set', 'keyA')
-        await rocksdb.sadd('set', 'keyB')
-        is_true = await rocksdb.sismember('set', 'keyB')
-        members = await rocksdb.smembers('set')
-        await rocksdb.srem('set', 'KeyB')
+user_cf = RColumnFamily('user')
+s = await db.put(b'userA', b'dataA', column_family=user_cf)
 ```
 
-
-Sorted Set commands:
-
+删除键
 
 ```python
-import aiorocksdb
+s = await db.delete(b'keyA')
+assert s.ok()
 
-
-async def sorted_set_commands():
-    async with aiorocksdb.RocksDb('test.db') as rocksdb:
-        await rocksdb.zadd('sortedSet', 1, 'apple')
-        await rocksdb.zadd('sortedSet', 2, 'banana')
-        is_one = await rocksdb.zscore('sortedSet', 'apple')
-        await rocksdb.zrem('sortedSet', 'banana')
-        is_one = await rocksdb.zcard('sortedSet')
+s = await db.delete_range(b'keyA', b'keyZ')
+assert s.ok()
 ```
+
+
+### 批量操作键
+
+
+
+
+
+### 使用迭代器读取键
+
+从头到尾完全遍历
+
+反向遍历
+
+设置开始/结束键遍历
+
+
+
+### 快照
+
+
+### 事物操作
+
+
+### sst导出/导入
+
+
+### 备份
+
+## 高级扩展
+通过基本功能提供的参照接口，结合 python 特点进行了部分改进
+
+
+### 友好的迭代器
+
+### 特定键序列化
+
+
+### 类 Redis 形式的方法
