@@ -6,7 +6,16 @@ from .column_family import *
 
 
 class Iterator:
-    def __init__(self, c: ColumnFamilyBase, prefix=None, start: bytes = None, stop: bytes = None, desc=False, seek_to_prev=False, read_options=None):
+    def __init__(
+            self,
+            c: ColumnFamilyBase,
+            prefix=None,
+            start: bytes = None,
+            stop: bytes = None,
+            desc=False,
+            seek_to_prev=False,
+            read_options=None,
+    ):
         self.desc = desc
         self.prefix = prefix
         self.start = start

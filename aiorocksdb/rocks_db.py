@@ -80,27 +80,36 @@ class RocksDbTransaction:
         status = await self.aio_call(self.transaction.pop_save_point)
         return status
 
-    async def multi_get(self, pairs: List[Tuple[bytes, RColumnFamilyT]], read_options: ReadOptionsT = None) \
-            -> List[StatusT[bytes]]:
+    async def multi_get(
+            self,
+            pairs: List[Tuple[bytes, RColumnFamilyT]],
+            read_options: ReadOptionsT = None,
+    ) -> List[StatusT[bytes]]:
         read_options = read_options or ReadOptions()
         assert isinstance(read_options, ReadOptions)
         keys, cf_list = list(zip(*pairs))
         keys = list(keys)
         cf_list = list(cf_list)
-        complex_status: ComplexStatusT = await self.aio_call(self.transaction.multi_get, read_options, cf_list, keys)
+        aio_call = self.aio_call(self.transaction.multi_get, read_options, cf_list, keys)
+        complex_status: ComplexStatusT = await aio_call
         status_list = complex_status.status_list
         for idx in range(len(status_list)):
             status_list[idx].result = complex_status.value_list[idx]
         return status_list
 
-    async def get_for_update(self, key: bytes, read_options: ReadOptionsT = None, column_family: RColumnFamilyT = None) \
-            -> StatusT[bytes]:
+    async def get_for_update(
+            self,
+            key: bytes,
+            read_options: ReadOptionsT = None,
+            column_family: RColumnFamilyT = None,
+    ) -> StatusT[bytes]:
         assert isinstance(key, bytes)
         read_options = read_options or ReadOptions()
         assert isinstance(read_options, ReadOptions)
-        column_family = column_family or self.default_column_family
+        column_family = column_family or self.db.default_column_family
         assert isinstance(column_family, RColumnFamily)
-        complex_status: ComplexStatusT = await self.aio_call(self.transaction.get_for_update, read_options, column_family, key)
+        aio_call = self.aio_call(self.transaction.get_for_update, read_options, column_family, key)
+        complex_status: ComplexStatusT = await aio_call
         status = complex_status.status
         status.result = complex_status.value
         return status
@@ -171,8 +180,7 @@ class SstFileReader(AsyncCallMixin):
         status = await self.aio_call(self.reader.open, file_path)
         return status
 
-    async def verify_checksum(self, read_options: ReadOptionsT = None) \
-            -> StatusT:
+    async def verify_checksum(self, read_options: ReadOptionsT = None) -> StatusT:
         read_options = read_options or ReadOptions()
         assert isinstance(read_options, ReadOptions)
         status = await self.aio_call(self.reader.verify_checksum, read_options)
@@ -249,12 +257,20 @@ class RocksDbBackupReadonly(AsyncCallMixin):
         return result
 
     async def verify_backup(self, backup_id: int) -> StatusT:
-        assert isinstance(backup_id, int) and 0 < backup_id < 2**32
+        assert isinstance(backup_id, int) and 0 < backup_id < 2 ** 32
         result = await self.aio_call(self.backup.verify_backup, backup_id)
         return result
     
-    async def restore_db_from_backup(self, backup_id: int, db_dir: str, wal_dir: str, restore_options: RestoreOptions = None) -> StatusT:
-        assert isinstance(backup_id, int) and 0 < backup_id < 2**32
+    async def restore_db_from_backup(
+            self,
+            backup_id: int,
+            db_dir: str,
+            wal_dir: str = None,
+            restore_options: RestoreOptions = None,
+    ) -> StatusT:
+        assert isinstance(backup_id, int) and 0 < backup_id < 2 ** 32
+        if wal_dir is None:
+            wal_dir = db_dir
         restore_options = restore_options or RestoreOptions()
         result = await self.aio_call(self.backup.restore_db_from_backup, restore_options, backup_id, db_dir, wal_dir)
         return result
@@ -356,7 +372,14 @@ class RocksDb(AsyncCallMixin):
         return status
 
     @classmethod
-    async def open_ttl_db(cls, path: str, ttls: List[int], column_family_list: List[RColumnFamily], read_only: bool = False, options: OptionsT = None) -> StatusT['RocksDb']:
+    async def open_ttl_db(
+            cls,
+            path: str,
+            ttls: List[int],
+            column_family_list: List[RColumnFamily],
+            read_only: bool = False,
+            options: OptionsT = None,
+    ) -> StatusT['RocksDb']:
         options = options or Options()
         assert isinstance(options, Options)
         assert isinstance(ttls, list)
@@ -372,8 +395,13 @@ class RocksDb(AsyncCallMixin):
         return status
 
     @classmethod
-    async def open_db_for_readonly(cls, path, options: OptionsT = None, column_family_list=None,
-                                   error_if_log_file_exist: bool = False) -> StatusT['RocksDb']:
+    async def open_db_for_readonly(
+            cls,
+            path,
+            options: OptionsT = None,
+            column_family_list=None,
+            error_if_log_file_exist: bool = False,
+    ) -> StatusT['RocksDb']:
         options = options or Options()
         assert isinstance(options, Options)
         rocks = RocksDb()
@@ -400,7 +428,12 @@ class RocksDb(AsyncCallMixin):
         return status
 
     @classmethod
-    async def open_optimistic_transaction_db(cls, path, options: OptionsT = None, column_family_list=None) -> StatusT['RocksDb']:
+    async def open_optimistic_transaction_db(
+            cls,
+            path,
+            options: OptionsT = None,
+            column_family_list=None,
+    ) -> StatusT['RocksDb']:
         options = options or Options()
         assert isinstance(options, Options)
         rocks = RocksDb()
@@ -423,7 +456,12 @@ class RocksDb(AsyncCallMixin):
         self._db = None
         self.close_executor()
 
-    async def create_column_family(self, column_family: RColumnFamilyT, options: ColumnFamilyOptions = None, ttl: int = 0) -> StatusT:
+    async def create_column_family(
+            self,
+            column_family: RColumnFamilyT,
+            options: ColumnFamilyOptions = None,
+            ttl: int = 0,
+    ) -> StatusT:
         if column_family.is_loaded():
             raise ValueError('column_family has handle')
         options = options or ColumnFamilyOptions()
@@ -458,7 +496,13 @@ class RocksDb(AsyncCallMixin):
         status = await self.aio_call(self._db.write, write_options, batch)
         return status
 
-    async def put(self, key, value, write_options: WriteOptions = None, column_family: RColumnFamilyT = None) -> StatusT:
+    async def put(
+            self,
+            key,
+            value,
+            write_options: WriteOptions = None,
+            column_family: RColumnFamilyT = None,
+    ) -> StatusT:
         assert isinstance(key, bytes)
         assert isinstance(value, bytes)
         write_options = write_options or WriteOptions()
@@ -468,8 +512,12 @@ class RocksDb(AsyncCallMixin):
         status = await self.aio_call(self._db.put, write_options, column_family, key, value)
         return status
 
-    async def get(self, key: bytes, read_options: ReadOptionsT = None, column_family: RColumnFamilyT = None) \
-            -> StatusT[bytes]:
+    async def get(
+            self,
+            key: bytes,
+            read_options: ReadOptionsT = None,
+            column_family: RColumnFamilyT = None,
+    ) -> StatusT[bytes]:
         assert isinstance(key, bytes)
         read_options = read_options or ReadOptions()
         assert isinstance(read_options, ReadOptions)
@@ -480,8 +528,11 @@ class RocksDb(AsyncCallMixin):
         status.result = complex_status.value
         return status
 
-    async def multi_get(self, pairs: List[Tuple[bytes, RColumnFamilyT]], read_options: ReadOptionsT = None) \
-            -> List[StatusT[bytes]]:
+    async def multi_get(
+            self,
+            pairs: List[Tuple[bytes, RColumnFamilyT]],
+            read_options: ReadOptionsT = None,
+    ) -> List[StatusT[bytes]]:
         read_options = read_options or ReadOptions()
         assert isinstance(read_options, ReadOptions)
         keys, cf_list = list(zip(*pairs))
@@ -493,7 +544,12 @@ class RocksDb(AsyncCallMixin):
             status_list[idx].result = complex_status.value_list[idx]
         return status_list
 
-    async def delete(self, key: bytes, write_options: WriteOptions = None, column_family: RColumnFamilyT = None) -> StatusT:
+    async def delete(
+            self,
+            key: bytes,
+            write_options: WriteOptions = None,
+            column_family: RColumnFamilyT = None,
+    ) -> StatusT:
         assert isinstance(key, bytes)
         write_options = write_options or WriteOptions()
         assert isinstance(write_options, WriteOptions)
@@ -502,8 +558,13 @@ class RocksDb(AsyncCallMixin):
         status = await self.aio_call(self._db.delete_key, write_options, column_family, key)
         return status
 
-    async def delete_range(self, from_key: bytes, to_key: bytes, write_options: WriteOptions = None,
-                           column_family: RColumnFamily = None) -> StatusT:
+    async def delete_range(
+            self,
+            from_key: bytes,
+            to_key: bytes,
+            write_options: WriteOptions = None,
+            column_family: RColumnFamily = None,
+    ) -> StatusT:
         assert isinstance(from_key, bytes)
         assert isinstance(to_key, bytes)
         write_options = write_options or WriteOptions()
@@ -513,7 +574,11 @@ class RocksDb(AsyncCallMixin):
         status = await self.aio_call(self._db.delete_range, write_options, column_family, from_key, to_key)
         return status
 
-    async def create_iterator(self, read_options: ReadOptionsT = None, column_family: RColumnFamilyT = None) -> RocksDbIterator:
+    async def create_iterator(
+            self,
+            read_options: ReadOptionsT = None,
+            column_family: RColumnFamilyT = None,
+    ) -> RocksDbIterator:
         read_options = read_options or ReadOptions()
         assert isinstance(read_options, ReadOptions)
         column_family = column_family or self.default_column_family
@@ -523,8 +588,12 @@ class RocksDb(AsyncCallMixin):
         result = RocksDbIterator(self.aio_call, iterator)
         return result
 
-    async def ingest_external_file(self, files: List[str], options: IngestExternalFileOptions = None,
-                                   column_family: RColumnFamilyT = None) -> StatusT:
+    async def ingest_external_file(
+            self,
+            files: List[str],
+            options: IngestExternalFileOptions = None,
+            column_family: RColumnFamilyT = None,
+    ) -> StatusT:
         options = options or IngestExternalFileOptions()
         assert isinstance(options, IngestExternalFileOptions)
         column_family = column_family or self.default_column_family
@@ -544,7 +613,11 @@ class RocksDb(AsyncCallMixin):
         status = await self.aio_call(self._db.create_backup, backup.backup)
         return status
 
-    async def begin_transaction(self, write_options: WriteOptions = None, txn_options: TransactionOptions = None) -> RocksDbTransaction:
+    async def begin_transaction(
+            self,
+            write_options: WriteOptions = None,
+            txn_options: TransactionOptions = None,
+    ) -> RocksDbTransaction:
         assert self.enable_transaction
         write_options = write_options or WriteOptions()
         assert isinstance(write_options, WriteOptions)
@@ -555,7 +628,11 @@ class RocksDb(AsyncCallMixin):
         await self.aio_call(self._db.begin_transaction, write_options, txn_options, transaction.transaction)
         return transaction
 
-    async def begin_optimistic_transaction(self, write_options: WriteOptions = None, txn_options: OptimisticTransactionOptions = None) -> RocksDbTransaction:
+    async def begin_optimistic_transaction(
+            self,
+            write_options: WriteOptions = None,
+            txn_options: OptimisticTransactionOptions = None,
+    ) -> RocksDbTransaction:
         assert self.enable_optimistic_transaction
         write_options = write_options or WriteOptions()
         assert isinstance(write_options, WriteOptions)
@@ -582,7 +659,25 @@ class RocksDb(AsyncCallMixin):
         await self.aio_call(self._db.set_ttl, column_family, ttl)
 
 
-__all__ = ['RocksDb', 'DbPath', 'Options', 'ReadOptions', 'ComplexStatus', 'WriteOptions', 'RColumnFamily',
-           'EnvOptions', 'RSnapshot', 'RocksDbIterator', 'RBatch', 'FlushOptions', 'SstFileWriter',
-           'IngestExternalFileOptions', 'SstFileReader', 'RocksDbBackupReadonly', 'RocksDbDbBackup',
-           'BackupableDBOptions', 'RocksDbTransaction', 'ColumnFamilyOptions', ]
+__all__ = [
+    'RocksDb',
+    'DbPath',
+    'Options',
+    'ReadOptions',
+    'ComplexStatus',
+    'WriteOptions',
+    'RColumnFamily',
+    'EnvOptions',
+    'RSnapshot',
+    'RocksDbIterator',
+    'RBatch',
+    'FlushOptions',
+    'SstFileWriter',
+    'IngestExternalFileOptions',
+    'SstFileReader',
+    'RocksDbBackupReadonly',
+    'RocksDbDbBackup',
+    'BackupableDBOptions',
+    'RocksDbTransaction',
+    'ColumnFamilyOptions',
+]
