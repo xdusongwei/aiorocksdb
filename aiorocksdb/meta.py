@@ -2,6 +2,7 @@ import enum
 import math
 import pickle
 from abc import ABC
+from typing import *
 from urllib.parse import unquote, quote
 from aiorocksdb.const import *
 
@@ -29,6 +30,15 @@ class MetaBase(ABC):
         binary = pickle.dumps(self)
         batch.put(meta_key, binary)
 
+    @classmethod
+    def from_dict(cls, d: dict):
+        meta = cls()
+        meta.__dict__.update(d)
+        return meta
+
+    def to_dict(self):
+        return self.__dict__
+
 
 class KeyMeta(MetaBase):
     key_type: KeyTypeEnum = None
@@ -36,6 +46,8 @@ class KeyMeta(MetaBase):
     length: int = 0
     head_key: str = None
     tail_key: str = None
+    head_seq: int = None
+    tail_seq: int = None
     seq: int = 0
 
     def height(self):
@@ -43,7 +55,7 @@ class KeyMeta(MetaBase):
         height = max(ORDER_LIST_HEIGHT_MIN, height)
         return height
 
-    def increase_seq(self):
+    def increase_seq(self) -> int:
         seq = self.seq = self.seq + 1
         return seq
 
@@ -60,12 +72,12 @@ class ListNode(MetaBase):
 
 
 class SkipListNode(MetaBase):
-    prev: list = list()
-    next: list = list()
-    seq: int = None
+    prev: List[Any] = list()
+    next: List[Any] = list()
+    seq: Any = None
 
     def __str__(self):
         return f'<SkipListNode: {self.seq} prev: {self.prev} next: {self.next}>'
 
 
-__all__ = ['KeyTypeEnum', 'KeyMeta', 'ListNode', 'SkipListNode', ]
+__all__ = ['KeyTypeEnum', 'KeyMeta', 'ListNode', 'SkipListNode', 'MetaBase', ]

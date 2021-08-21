@@ -1,88 +1,12 @@
 from typing import *
-import abc
-from .db_type import *
-from .rocks_db import *
-
-
-class StatusError(Exception):
-    def __init__(self, status):
-        super(StatusError, self).__init__()
-        self.status: StatusT = status
-
-    def __str__(self):
-        return f'<StatusError code:{self.status.code()} subCode:{self.status.subcode()} {self.status.ToString()}>'
-
-
-class ColumnFamilyBase(abc.ABC):
-    def __init__(self, cf_name: str, d: RocksDb, read_options=None):
-        cf_dict = d.column_family_dict
-        cf_name = cf_name or d.DEFAULT_COLUMN_FAMILY
-        assert cf_name in cf_dict
-        self.d = d
-        self.cf = cf_dict[cf_name]
-        self.name = cf_name
-        self.read_options = read_options
-
-
-class ColumnFamily(ColumnFamilyBase):
-    def __init__(self, cf_name: str, d: RocksDb, read_options=None):
-        super(ColumnFamily, self).__init__(cf_name=cf_name, d=d, read_options=read_options)
-
-    def __str__(self):
-        return f'<ColumnFamily {self.name}>'
-
-    async def get(self, key: bytes, raise_exception=False) -> Optional[bytes]:
-        status = await self.d.get(key, column_family=self.cf, read_options=self.read_options)
-        if status.ok():
-            return status.result
-        else:
-            if raise_exception:
-                raise StatusError(status)
-            else:
-                return None
-
-    async def put(self, key: bytes, value: bytes):
-        status = await self.d.put(key, value, column_family=self.cf)
-        if not status.ok():
-            raise StatusError(status)
-
-    async def delete(self, key: bytes):
-        status = await self.d.delete(key, column_family=self.cf)
-        if not status.ok():
-            raise StatusError(status)
-
-
-class SnapshotColumnFamily(ColumnFamilyBase):
-    def __init__(self, cf_name: str, d: RocksDb, read_options=None):
-        super(SnapshotColumnFamily, self).__init__(cf_name=cf_name, d=d, read_options=read_options)
-
-    def __str__(self):
-        return f'<SnapshotColumnFamily {self.name}>'
-
-    async def get(self, key: bytes, raise_exception=False) -> Optional[bytes]:
-        status = await self.d.get(key, column_family=self.cf, read_options=self.read_options)
-        if status.ok():
-            return status.result
-        else:
-            if raise_exception:
-                raise StatusError(status)
-            else:
-                return None
-
-
-class BatchColumnFamily(ColumnFamilyBase):
-    def __init__(self, cf_name: str, d: RocksDb, batch: RBatch):
-        super(BatchColumnFamily, self).__init__(cf_name=cf_name, d=d)
-        self.batch = batch
-
-    def __str__(self):
-        return f'<BatchColumnFamily {self.name}>'
-
-    def put(self, key: bytes, value: bytes):
-        self.batch.put(key, value, self.cf)
-
-    def delete(self, key: bytes):
-        self.batch.delete_key(key, self.cf)
+from aiorocksdb.db_type import *
+from aiorocksdb.codec import *
+from aiorocksdb.rocks_db import *
+from aiorocksdb.error_type import *
+from aiorocksdb.column_family import *
+from aiorocksdb.batch import *
+from aiorocksdb.complex.codec import *
+from aiorocksdb.complex.redis_style import *
 
 
 class Snapshot:
@@ -106,27 +30,8 @@ class Snapshot:
         self.read_options = None
 
     def __getitem__(self, item) -> SnapshotColumnFamily:
+        item = ColumnFamilyBase.to_name(item)
         return SnapshotColumnFamily(item, self.d, self.read_options)
-
-
-class Batch:
-    def __init__(self, db, write_options: WriteOptions = None):
-        self.d = db.d
-        self.batch = None
-        self.write_options = write_options
-
-    async def __aenter__(self):
-        self.batch = RBatch()
-        return self
-
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
-        rocksdb: RocksDb = self.d
-        status = await rocksdb.write(self.batch, self.write_options)
-        if not status.ok():
-            raise StatusError(status)
-
-    def __getitem__(self, item) -> BatchColumnFamily:
-        return BatchColumnFamily(item, self.d, self.batch)
 
 
 class Db:
@@ -136,22 +41,28 @@ class Db:
     open_transaction_db = RocksDb.open_transaction_db
     open_optimistic_transaction_db = RocksDb.open_optimistic_transaction_db
 
-    def __init__(self, open_handler):
+    def __init__(self, open_handler, codec_list=None):
         self.open_handler = open_handler
         self.d: RocksDb = None
+        self.codec_list = codec_list
 
     @property
     def is_open(self):
         return bool(self.d)
 
     def __getitem__(self, item) -> ColumnFamily:
+        item = ColumnFamilyBase.to_name(item)
         return ColumnFamily(item, self.d)
 
     async def open(self):
         assert self.d is None
-        status: StatusT = await self.open_handler
+        status: StatusT[RocksDb] = await self.open_handler
         if status.ok():
             self.d = status.result
+            self.codec_list = self.codec_list or list()
+            self.codec_list.append(ComplexCodec())
+            self.codec_list.append(Codec(None))
+            self.d.codec_list = self.codec_list
         else:
             raise StatusError(status)
 
@@ -168,5 +79,29 @@ class Db:
     async def __aexit__(self, exc_type, exc_val, exc_tb):
         await self.close()
 
+    async def create_column_family(self, column_family: Union[str, RColumnFamilyT, ColumnFamilyBase], options: ColumnFamilyOptions = None) -> StatusT:
+        cf = RColumnFamily(column_family)
+        status = await self.d.create_column_family(cf, options)
+        return status
 
-__all__ = ['StatusError', 'Db', 'ColumnFamily', 'Snapshot', 'SnapshotColumnFamily', 'BatchColumnFamily', 'Batch', ]
+    async def drop_column_family(self, column_family: Union[str, RColumnFamilyT, ColumnFamilyBase]) -> StatusT:
+        name = ColumnFamilyBase.to_name(column_family)
+        cf = ColumnFamily(name, self.d).cf
+        status = await self.d.drop_column_family(cf)
+        return status
+
+    def redis(self, column_family: Union[str, RColumnFamilyT, ColumnFamilyBase]) -> RedisCommand:
+        name = ColumnFamilyBase.to_name(column_family)
+        cf = ColumnFamily(name, self.d)
+        command = RedisCommand(cf, self)
+        return command
+
+    @property
+    def interface(self):
+        return self.d
+
+
+__all__ = [
+    'Db',
+    'Snapshot',
+]

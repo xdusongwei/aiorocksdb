@@ -110,5 +110,5 @@ debug*/
 .DS_Store
 tmp/
 .vs/
-db_*/
+db_test*/
 *.sst

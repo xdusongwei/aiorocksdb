@@ -4,9 +4,11 @@ from aiorocksdb.rocks_db import *
 
 @pytest.mark.asyncio
 async def test_snapshot():
+    await RocksDb.destroy_db('db_test_native')
+
     option = Options()
     option.create_if_missing = True
-    s = await RocksDb.open_db('db_test_snapshot', option)
+    s = await RocksDb.open_db('db_test_native', option)
     assert s.ok()
     r = s.result
     s = await r.put(b'k', b'v')

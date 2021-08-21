@@ -5,7 +5,7 @@ import setuptools
 import subprocess
 
 
-__version__ = '0.0.1'
+__version__ = '0.0.2'
 name = 'aiorocksdb'
 
 
@@ -92,6 +92,7 @@ test_deps = [
     'pytest-cov',
     'codecov',
     'coveralls',
+    'toml',
 ]
 
 extras = {
@@ -139,13 +140,13 @@ setup(
     url='https://github.com/xdusongwei/aiorocksdb',
     description='',
     long_description='',
-    install_requires=['pybind11>=2.4', 'typing', ],
+    install_requires=['pybind11>=2.4', 'typing', 'msgpack', ],
     setup_requires=['pybind11>=2.4'],
     ext_modules=ext_modules,
     cmdclass={'build_ext': BuildExt},
     zip_safe=False,
     packages=find_packages(),
-    python_requires='>=3.7.0',
+    python_requires='>=3.8.0',
     tests_require=test_deps,
     extras_require=extras,
 )

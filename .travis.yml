@@ -5,10 +5,10 @@ python:
 services:
 - docker
 install:
-- docker build -t xdusongwei/aiorocksdb .
+- docker build --quiet -t travis/aiorocksdb .
 script:
-- docker run --name test xdusongwei/aiorocksdb /bin/bash -c "coverage run -m pytest"
-- docker cp test:/home/travis/build/xdusongwei/aiorocksdb/.coverage .
-- pip install codecov coveralls
-- codecov
-- coveralls
+- docker run --name ci travis/aiorocksdb /bin/bash -c "coverage run -m pytest"
+- docker cp ci:/home/travis/build/xdusongwei/aiorocksdb/.coverage .
+- pip --quiet install codecov coveralls
+- test -f .coverage && codecov
+- test -f .coverage && coveralls

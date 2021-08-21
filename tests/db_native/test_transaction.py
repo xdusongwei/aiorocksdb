@@ -4,6 +4,8 @@ from aiorocksdb.rocks_db import *
 
 @pytest.mark.asyncio
 async def test_transaction():
+    await RocksDb.destroy_db('db_test_transaction')
+
     option = Options()
     option.create_if_missing = True
     s = await RocksDb.open_transaction_db('db_test_transaction', option)
@@ -43,6 +45,8 @@ async def test_transaction():
 
 @pytest.mark.asyncio
 async def test_optimistic_transaction():
+    await RocksDb.destroy_db('db_test_optimistic_transaction')
+
     option = Options()
     option.create_if_missing = True
     s = await RocksDb.open_optimistic_transaction_db('db_test_optimistic_transaction', option)
