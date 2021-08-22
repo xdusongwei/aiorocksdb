@@ -50,11 +50,7 @@ await db.close()
 
 删除数据库
 ```python
-from aiorocksdb.rocks_db import *
-
-
-async def main():
-    await RocksDb.destroy_db('dbPathName')
+await RocksDb.destroy_db('dbPathName')
 ```
 
 
@@ -191,7 +187,7 @@ status = await db.ingest_external_file(['import.sst', ], ingest_options)
 ### 备份
 ```python
 backup = RocksDbDbBackup()
-status= await backup.open(BackupableDBOptions('backupPathName'))
+status = await backup.open(BackupableDBOptions('backupPathName'))
 status = await db.create_backup(backup)
 
 
@@ -217,27 +213,28 @@ from aiorocksdb.extension import *
 from aiorocksdb.batch import *
 
 
-options = Options()
-options.create_if_missing = True
-async with Db(Db.open_db('dbPathName', options=options)) as db:
-    cf = db['default']
-    d = {
-        b'a1': b'a1',
-        b'a2': b'a2',
-        b'a3': b'a3',
-        b'a5': b'a5',
-        b'b1': b'b1',
-        b'b2': b'b2',
-        b'b3': b'b3',
-    }
-    
-    for k, v in d.items():
-        await cf.put(k, v)
-
-    async with Batch(db):
+async def main():
+    options = Options()
+    options.create_if_missing = True
+    async with Db(Db.open_db('dbPathName', options=options)) as db:
         cf = db['default']
+        d = {
+            b'a1': b'a1',
+            b'a2': b'a2',
+            b'a3': b'a3',
+            b'a5': b'a5',
+            b'b1': b'b1',
+            b'b2': b'b2',
+            b'b3': b'b3',
+        }
+        
         for k, v in d.items():
             await cf.put(k, v)
+    
+        async with Batch(db):
+            cf = db['default']
+            for k, v in d.items():
+                await cf.put(k, v)
 ```
 
 ### 友好的迭代器
@@ -329,3 +326,4 @@ async with Db(Db.open_db('dbPathName', options=options, column_family_list=[code
 
 
 ### 类 Redis 形式的方法
+待完善
