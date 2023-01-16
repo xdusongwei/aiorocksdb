@@ -50,7 +50,6 @@ class OptionsT:
     max_background_flushes: int
     max_subcompactions: int
     max_background_compactions: int
-    base_background_compactions: int
     max_background_jobs: int
     delete_obsolete_files_period_micros: int
     wal_dir: str

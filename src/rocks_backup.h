@@ -1,6 +1,6 @@
 #include <rocksdb/options.h>
 #include <rocksdb/db.h>
-#include <rocksdb/utilities/backupable_db.h>
+#include <rocksdb/utilities/backup_engine.h>
 
 using namespace ROCKSDB_NAMESPACE;
 
@@ -11,7 +11,7 @@ class RBackupReadonly{
             backup = nullptr;
         }
 
-        Status open(const BackupableDBOptions &options){
+        Status open(const BackupEngineOptions &options){
             #ifndef USE_GIL
             py::gil_scoped_release release;
             #endif
@@ -67,7 +67,7 @@ class RBackup{
             backup = nullptr;
         }
 
-        Status open(const BackupableDBOptions &options){
+        Status open(const BackupEngineOptions &options){
             #ifndef USE_GIL
             py::gil_scoped_release release;
             #endif

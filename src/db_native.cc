@@ -6,7 +6,7 @@
 #include <rocksdb/utilities/transaction.h>
 #include <rocksdb/utilities/optimistic_transaction_db.h>
 #include <rocksdb/utilities/transaction_db.h>
-#include <rocksdb/utilities/backupable_db.h>
+#include <rocksdb/utilities/backup_engine.h>
 #include <rocksdb/utilities/options_util.h>
 using namespace ROCKSDB_NAMESPACE;
 
@@ -20,9 +20,9 @@ using namespace ROCKSDB_NAMESPACE;
 namespace py = pybind11;
 
 
-struct BackupableDBOptionsWrapper: BackupableDBOptions{
+struct BackupableDBOptionsWrapper: BackupEngineOptions{
     public:
-        explicit BackupableDBOptionsWrapper(const std::string& _backup_dir): BackupableDBOptions(_backup_dir){}
+        explicit BackupableDBOptionsWrapper(const std::string& _backup_dir): BackupEngineOptions(_backup_dir){}
 };
 
 
@@ -50,7 +50,6 @@ PYBIND11_MODULE(db_native, m) {
     .def_readwrite("max_background_flushes", &Options::max_background_flushes)
     .def_readwrite("max_subcompactions", &Options::max_subcompactions)
     .def_readwrite("max_background_compactions", &Options::max_background_compactions)
-    .def_readwrite("base_background_compactions", &Options::base_background_compactions)
     .def_readwrite("max_background_jobs", &Options::max_background_jobs)
     .def_readwrite("delete_obsolete_files_period_micros", &Options::delete_obsolete_files_period_micros)
     .def_readwrite("wal_dir", &Options::wal_dir)
@@ -118,7 +117,7 @@ PYBIND11_MODULE(db_native, m) {
     .def(py::init())
     ;
 
-    py::class_<BackupableDBOptions>(m, "BackupableDBOptionsNative")
+    py::class_<BackupEngineOptions>(m, "BackupableDBOptionsNative")
     .def(py::init<const std::string&>())
     ;
 
@@ -178,7 +177,7 @@ PYBIND11_MODULE(db_native, m) {
 
     m.def("BackupableDBOptions",
         [](const std::string& _backup_dir) {
-            BackupableDBOptions options = BackupableDBOptions(_backup_dir);
+            BackupEngineOptions options = BackupEngineOptions(_backup_dir);
             return options;
         },
         ""
